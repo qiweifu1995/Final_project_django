@@ -124,8 +124,7 @@ def submit(request, course_id):
             submitted_anwsers.append(choice_id)
 
     for id in submitted_anwsers:
-        choice = get_object_or_404(Choice, pk=choice_id)
-        submission.choices.add(choice)
+        submission.choices.add(id)
     return redirect(reverse(viewname='onlinecourse:show_exam_result', args=[course.id, submission.id]))
 
 
@@ -150,16 +149,33 @@ def extract_answers(request):
 def show_exam_result(request, course_id, submission_id):
     course = get_object_or_404(Course, pk=course_id)
     submission = get_object_or_404(Submission, pk=submission_id)
-    selected_ids = submission.choices.all()
+    selected_ids = submission.choices.all().values_list('id', flat=True)
     total_score = 0
-    for choice in selected_ids:
-        if choice.is_correct:
-            total_score += choice.question.grade
+    current_score = 0
+    # for choice in submission.choices.all():
+    #     if choice.is_correct:
+    #         total_score += choice.question.grade
+
+    for question in course.question_set.all():
+        total_score += question.grade
+        correct = True
+        for choice in question.choice_set.all():
+            if choice.is_correct:
+                if choice.id in selected_ids:
+                    pass
+                else:
+                    correct = False
+        if correct:
+            current_score += question.grade
+    try:
+        grade = int(current_score/total_score * 100)
+    except:
+        grade = 0
 
     context = {}
     context["course"] = course
     context["selected_ids"] = selected_ids
-    context["grade"] = total_score
+    context["grade"] = grade
 
     return render(request, 'onlinecourse/exam_result_bootstrap.html', context)
 
